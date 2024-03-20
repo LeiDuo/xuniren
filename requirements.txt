@@ -29,6 +29,7 @@ imageio-ffmpeg
 
 flask
 flask_sockets
+flask-socketio
 pydub
 moviepy
 pygame
