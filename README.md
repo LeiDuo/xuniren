@@ -1,5 +1,4 @@
 # 虚拟人说话头生成(NeRF虚拟人实时驱动)--尽情打造自己的call annie吧
-![](/img/example.gif)
 
 xuniren windows安装教程：[一步步教学在 Windows 下面安装 pytorch3d 来部署 xuniren 这个项目 - 坤坤 - 博客园 (cnblogs.com)](https://www.cnblogs.com/dm521/p/17469967.html)
 
@@ -11,10 +10,10 @@ xuniren windows安装教程：[一步步教学在 Windows 下面安装 pytorch3d
 
 ## Installation
 
-Tested on Ubuntu 22.04, Pytorch 1.12 and CUDA 11.6，or  Pytorch 1.12 and CUDA 11.3
-
+Tested on Ubuntu 22.04, Pytorch 1.12 and CUDA 11.6，or  Pytorch 1.12 and CUDA 11.3<br>
+建议不要使用其他pytorch版本
 ```python
-git clone https://github.com/waityousea/xuniren.git
+https://github.com/LeiDuo/xuniren.git
 cd xuniren
 ```
 
@@ -22,6 +21,7 @@ cd xuniren
 
 ```python
 # for ubuntu, portaudio is needed for pyaudio to work.
+# 找不到更新下软件源
 sudo apt install portaudio19-dev
 
 pip install -r requirements.txt
@@ -87,20 +87,9 @@ bash scripts/install_ext.sh(建议复制出来单独安装)
 环境配置完成后，启动虚拟人生成器：
 
 ```python
-python app.py
+python app_connect.py
 ```
-### **start（对接fay，在ubuntu 20.04及windows10下完成测试）**
-环境配置完成后，启动fay对接脚本(无须启动app.py)
-```python
-python fay_connect.py
-```
-![](img/weplay.png)
 
-扫码支助开源开发工作，凭支付单号入qq交流群
-
-
-
-接口的输入与输出信息 [Websoket.md](https://github.com/waityousea/xuniren/blob/main/WebSocket.md)
 
 虚拟人生成的核心文件
 
@@ -125,4 +114,3 @@ python fay_connect.py
 - The algorithm core come from  [RAD-NeRF](https://github.com/ashawkey/RAD-NeRF).
 - Usage example [Fay](https://github.com/TheRamU/Fay).
 
-学术交流可发邮件到邮箱：waityousea@126.com
