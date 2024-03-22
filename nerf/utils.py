@@ -1071,7 +1071,7 @@ class Trainer(object):
         self.evaluate_one_epoch(loader, name)
         self.use_tensorboardX = use_tensorboardX
 
-    def test(self, loader, save_path=None, name=None, write_image=False):
+    def test(self, loader, save_path=None, name=None, write_image=False, fd_pipe=None):
 
         if save_path is None:
             save_path = os.path.join(self.workspace, "results")
@@ -1111,6 +1111,8 @@ class Trainer(object):
                 pred_depth = preds_depth[0].detach().cpu().numpy()
                 pred_depth = (pred_depth * 255).astype(np.uint8)
 
+                if fd_pipe is not None:
+                    os.write(fd_pipe, pred.tobytes())
                 if write_image:
                     imageio.imwrite(path, pred)
                     imageio.imwrite(path_depth, pred_depth)

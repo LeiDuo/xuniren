@@ -86,28 +86,23 @@ def test_disconnect():
 
 @socketio.on("dighuman")
 def dighuman(dighuman):
-    txt_line = re.split(r"[。！!]", dighuman)
-    # txt_line = [dighuman]
-    if txt_line[-1] == "":
-        txt_line = txt_line[0:-2]
     with open("data/video/log_video_gen.txt", mode="a") as f:
         print(
-            f"接收到[{dighuman[0:5]}]...消息,开始分{len(txt_line)}段生成数字人视频",
+            f"接收到[{dighuman[0:5]}]...消息,开始生成数字人视频",
             file=f,
             flush=True,
         )
-        for line in txt_line:
-            line = line.replace(" ", "")
-            if len(line) == 0:
-                break
-            cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(f"准备生成视频时间:{cur_time}", file=f, flush=True)
-            audio_path, audio_path_eo, video_path, output_path = txt_to_audio(line)
-            generate_video(audio_path, audio_path_eo, video_path, output_path)
-            cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(f"完成生成视频时间:{cur_time}", file=f, flush=True)
-            video_list.append(output_path)
-            send_information(output_path)
+        dighuman = dighuman.replace(" ", "")
+        if len(dighuman) == 0:
+            return
+        cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        print(f"准备生成视频时间:{cur_time}", file=f, flush=True)
+        audio_path, audio_path_eo, video_path, output_path = txt_to_audio(dighuman)
+        generate_video(audio_path, audio_path_eo, video_path, output_path)
+        cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        print(f"完成生成视频时间:{cur_time}", file=f, flush=True)
+        video_list.append(output_path)
+        send_information(output_path)
     send_information()
 
 
