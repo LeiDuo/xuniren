@@ -17,7 +17,7 @@ video_list = []
 
 
 async def main(voicename: str, text: str, OUTPUT_FILE):
-    communicate = edge_tts.Communicate(text, voicename)
+    communicate = edge_tts.Communicate(text, voicename, receive_timeout = 20)
 
     with open(OUTPUT_FILE, "wb") as file:
         async for chunk in communicate.stream():

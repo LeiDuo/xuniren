@@ -25,7 +25,7 @@ import librosa
 fps = 25
 width = 512
 height = 512
-push_url = "rtmp://127.0.0.1:1935/humanlive"
+push_url = "rtsp://127.0.0.1:8554/humanlive"
 video_pipe_name = "video_pipe"
 audio_pipe_name = "audio_pipe"
 command = [
@@ -39,19 +39,19 @@ command = [
     "-vcodec",
     "rawvideo",
     "-pix_fmt",
-    "bgr24",
+    "rgb24",
     "-s",
     "{}x{}".format(width, height),
     "-r",
     str(fps),
     "-i",
-    "video_pipe",  # 视频流管道作为输入
+    video_pipe_name,  # 视频流管道作为输入
     "-f",
     "s16le",
     "-acodec",
     "pcm_s16le",
     "-i",
-    "audio_pipe",  # 音频流管道作为输入
+    audio_pipe_name,  # 音频流管道作为输入
     "-c:v",
     "libx264",
     "-pix_fmt",
@@ -76,9 +76,11 @@ command = [
     "aac",
     "-shortest",
     "-f",
-    "flv",
+    "rtsp",
     push_url,
 ]
+fd_v = None
+fd_a = None
 
 
 def _read_frame(stream, exit_event, queue, chunk):
@@ -859,13 +861,16 @@ def video_process(opt, trainer, model, dir_path):
     # temp fix: for update_extra_states
     model.aud_features = test_loader._data.auds
     model.eye_areas = test_loader._data.eye_area
-    fd_pipe = os.open(video_pipe_name, os.O_WRONLY)
+    global fd_v
+    if fd_v is None:
+        fd_v = os.open(video_pipe_name, os.O_WRONLY)
+    audio_thread = Thread(target=write_audio, args=(dir_path["audio"], ))
+    audio_thread.start()
     test = trainer.test(
         test_loader,
         name=dir_path["input"].split("/")[-1].split(".")[0],
-        fd_pipe=fd_pipe,
+        fd_pipe=fd_v,
     )
-    os.close(fd_pipe)
     command = "ffmpeg -y -i %s -i %s -c:v copy -c:a aac %s" % (
         dir_path["input"],
         dir_path["audio"],
@@ -888,13 +893,15 @@ def generate_video(audio_path, audio_path_eo, video_path, output_path):
         "input": video_path,
         "output": output_path,
     }
-    make_pipe()
-    ffmpeg_thread = Thread(target=run_ffmpeg)
-    audio_thread = Thread(target=write_audio, args=(audio_path,))
-    ffmpeg_thread.start()
-    audio_thread.start()
     path = video_process(opt_vid, trainer_vid, model_vid, dir_path)
     return path
+
+
+'''持续写入44100/fps长度的0音频数组以及图像矩阵'''
+def ffmpeg_pre_process():
+    make_pipe()
+    ffmpeg_thread = Thread(target=run_ffmpeg)
+    ffmpeg_thread.start()
 
 
 def make_pipe():
@@ -909,13 +916,15 @@ def make_pipe():
 
 def run_ffmpeg():
     proc = subprocess.Popen(command, shell=False, stdin=subprocess.PIPE)
-    proc.wait()
+    print("ffmpeg exit, exit code = %d" %(proc.wait()))
 
 
 def write_audio(audio_path):
     speech_array, _ = librosa.load(audio_path, sr=44100)
     speech_array = (speech_array * 32767).astype(np.int16)
-    fd_pipe = os.open(audio_pipe_name, os.O_WRONLY)
+    global fd_a
+    if fd_a is None:
+        fd_a = os.open(audio_pipe_name, os.O_WRONLY)
     wav_frame_num = int(44100 / fps)
     frame_counter = 0
     while True:
@@ -923,8 +932,7 @@ def write_audio(audio_path):
         speech = speech_array[
             frame_counter * wav_frame_num : (frame_counter + 1) * wav_frame_num
         ]
-        os.write(fd_pipe, speech.tobytes())
+        os.write(fd_a, speech.tobytes())
         frame_counter += 1
         if frame_counter * wav_frame_num >= len(speech_array):
             break
-    os.close(fd_pipe)
