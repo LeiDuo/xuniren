@@ -1,33 +1,33 @@
 torch-ema
 ninja
-trimesh
-opencv-python
-tensorboardX
+trimesh==4.2.0
+opencv-python==4.9.0.80
+tensorboardX==2.6.2.2
 torch
-numpy 
+numpy==1.24.4
 pandas
-tqdm
-matplotlib
+tqdm==4.66.2
+matplotlib==3.7.5
 PyMCubes
-rich
-dearpygui
-packaging
-scipy
+rich==13.7.1
+dearpygui==1.11.1
+packaging==24.0
+scipy==1.10.1
 
 face_alignment
 python_speech_features
 numba
-resampy
-transformers
-pyaudio
-soundfile
+resampy==0.4.3
+transformers==4.38.2
+pyaudio==0.2.14
+soundfile==0.12.1
 einops
 configargparse
 
-lpips
+lpips==0.1.4
 imageio-ffmpeg
 
-flask
+flask==1.1.4
 flask_sockets
 flask-socketio
 pydub
@@ -35,3 +35,6 @@ moviepy
 pygame
 edge-tts
 websocket-client
+imageio==2.34.0
+librosa==0.10.1
+setuptools==68.2.2

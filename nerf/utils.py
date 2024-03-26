@@ -76,7 +76,7 @@ def get_audio_features(features, att_mode, index):
 
 @torch.jit.script
 def linear_to_srgb(x):
-    return torch.where(x < 0.0031308, 12.92 * x, 1.055 * x**0.41666 - 0.055)
+    return torch.where(x < 0.0031308, 12.92 * x, 1.055 * x ** 0.41666 - 0.055)
 
 
 @torch.jit.script
@@ -86,7 +86,7 @@ def srgb_to_linear(x):
 
 # copied from pytorch3d
 def _angle_from_tan(
-    axis: str, other_axis: str, data, horizontal: bool, tait_bryan: bool
+        axis: str, other_axis: str, data, horizontal: bool, tait_bryan: bool
 ) -> torch.Tensor:
     """
     Extract the first or third Euler angle from the two members of
@@ -129,7 +129,7 @@ def _index_from_letter(letter: str) -> int:
 
 
 def matrix_to_euler_angles(
-    matrix: torch.Tensor, convention: str = "XYZ"
+        matrix: torch.Tensor, convention: str = "XYZ"
 ) -> torch.Tensor:
     """
     Convert rotations given as rotation matrices to Euler angles in radians.
@@ -203,7 +203,7 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
 
 @torch.cuda.amp.autocast(enabled=False)
 def euler_angles_to_matrix(
-    euler_angles: torch.Tensor, convention: str = "XYZ"
+        euler_angles: torch.Tensor, convention: str = "XYZ"
 ) -> torch.Tensor:
     """
     Convert rotations given as Euler angles in radians to rotation matrices.
@@ -291,7 +291,7 @@ def get_rays(poses, intrinsics, H, W, N=-1, patch_size=1, rect=None):
 
             # random sample left-top cores.
             # NOTE: this impl will lead to less sampling on the image corner pixels... but I don't have other ideas.
-            num_patch = N // (patch_size**2)
+            num_patch = N // (patch_size ** 2)
             inds_x = torch.randint(0, H - patch_size, size=[num_patch], device=device)
             inds_y = torch.randint(0, W - patch_size, size=[num_patch], device=device)
             inds = torch.stack([inds_x, inds_y], dim=-1)  # [np, 2]
@@ -376,7 +376,7 @@ def torch_vis_2d(x, renormalize=False):
     # renormalize
     if renormalize:
         x = (x - x.min(axis=0, keepdims=True)) / (
-            x.max(axis=0, keepdims=True) - x.min(axis=0, keepdims=True) + 1e-8
+                x.max(axis=0, keepdims=True) - x.min(axis=0, keepdims=True) + 1e-8
         )
 
     plt.imshow(x)
@@ -406,9 +406,9 @@ def extract_fields(bound_min, bound_max, resolution, query_func, S=128):
                         .numpy()
                     )  # [S, 1] --> [x, y, z]
                     u[
-                        xi * S : xi * S + len(xs),
-                        yi * S : yi * S + len(ys),
-                        zi * S : zi * S + len(zs),
+                    xi * S: xi * S + len(xs),
+                    yi * S: yi * S + len(ys),
+                    zi * S: zi * S + len(zs),
                     ] = val
     return u
 
@@ -425,8 +425,8 @@ def extract_geometry(bound_min, bound_max, resolution, threshold, query_func):
     b_min_np = bound_min.detach().cpu().numpy()
 
     vertices = (
-        vertices / (resolution - 1.0) * (b_max_np - b_min_np)[None, :]
-        + b_min_np[None, :]
+            vertices / (resolution - 1.0) * (b_max_np - b_min_np)[None, :]
+            + b_min_np[None, :]
     )
     return vertices, triangles
 
@@ -624,31 +624,31 @@ class LMDMeter:
 
 class Trainer(object):
     def __init__(
-        self,
-        name,  # name of this experiment
-        opt,  # extra conf
-        model,  # network
-        criterion=None,  # loss function, if None, assume inline implementation in train_step
-        optimizer=None,  # optimizer
-        ema_decay=None,  # if use EMA, set the decay
-        ema_update_interval=1000,  # update ema per $ training steps.
-        lr_scheduler=None,  # scheduler
-        metrics=[],
-        # metrics for evaluation, if None, use val_loss to measure performance, else use the first metric.
-        local_rank=0,  # which GPU am I
-        world_size=1,  # total num of GPUs
-        device=None,  # device to use, usually setting to None is OK. (auto choose device)
-        mute=False,  # whether to mute all print
-        fp16=False,  # amp optimize level
-        eval_interval=1,  # eval once every $ epoch
-        max_keep_ckpt=2,  # max num of saved ckpts in disk
-        workspace="workspace",  # workspace to save logs & ckpts
-        best_mode="min",  # the smaller/larger result, the better
-        use_loss_as_metric=True,  # use loss as the first metric
-        report_metric_at_train=False,  # also report metrics at training
-        use_checkpoint="latest",  # which ckpt to use at init time
-        use_tensorboardX=True,  # whether to use tensorboard for logging
-        scheduler_update_every_step=False,  # whether to call scheduler.step() after every train step
+            self,
+            name,  # name of this experiment
+            opt,  # extra conf
+            model,  # network
+            criterion=None,  # loss function, if None, assume inline implementation in train_step
+            optimizer=None,  # optimizer
+            ema_decay=None,  # if use EMA, set the decay
+            ema_update_interval=1000,  # update ema per $ training steps.
+            lr_scheduler=None,  # scheduler
+            metrics=[],
+            # metrics for evaluation, if None, use val_loss to measure performance, else use the first metric.
+            local_rank=0,  # which GPU am I
+            world_size=1,  # total num of GPUs
+            device=None,  # device to use, usually setting to None is OK. (auto choose device)
+            mute=False,  # whether to mute all print
+            fp16=False,  # amp optimize level
+            eval_interval=1,  # eval once every $ epoch
+            max_keep_ckpt=2,  # max num of saved ckpts in disk
+            workspace="workspace",  # workspace to save logs & ckpts
+            best_mode="min",  # the smaller/larger result, the better
+            use_loss_as_metric=True,  # use loss as the first metric
+            report_metric_at_train=False,  # also report metrics at training
+            use_checkpoint="latest",  # which ckpt to use at init time
+            use_tensorboardX=True,  # whether to use tensorboard for logging
+            scheduler_update_every_step=False,  # whether to call scheduler.step() after every train step
     ):
 
         self.name = name
@@ -914,7 +914,7 @@ class Trainer(object):
 
             # gradually increase it
             lambda_amb = (
-                min(self.global_step / self.opt.iters, 1.0) * self.opt.lambda_amb
+                    min(self.global_step / self.opt.iters, 1.0) * self.opt.lambda_amb
             )
             # lambda_amb = self.opt.lambda_amb
             loss = loss + lambda_amb * loss_amb
@@ -1091,9 +1091,9 @@ class Trainer(object):
         all_preds = []
         record_time = time.time()
         with torch.no_grad():
-
+            frame_sec = 1 / 25
             for i, data in enumerate(loader):
-
+                t0 = time.time()
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     preds, preds_depth = self.test_step(data)
 
@@ -1113,10 +1113,14 @@ class Trainer(object):
 
                 if fd_pipe is not None:
                     os.write(fd_pipe, pred.tobytes())
-                if write_image:
-                    imageio.imwrite(path, pred)
-                    imageio.imwrite(path_depth, pred_depth)
-                all_preds.append(pred)
+                    cost = time.time() - t0
+                    if frame_sec > cost:
+                        time.sleep(frame_sec - cost)
+
+                # if write_image:
+                #     imageio.imwrite(path, pred)
+                #     imageio.imwrite(path_depth, pred_depth)
+                # all_preds.append(pred)
 
                 pbar.update(loader.batch_size)
 
@@ -1128,23 +1132,7 @@ class Trainer(object):
                 flush=True,
             )
         # write video
-        all_preds = np.stack(all_preds, axis=0)
-        record_time = time.time()
-        imageio.mimwrite(
-            os.path.join(save_path, f"{name}.mp4"),
-            all_preds,
-            fps=25,
-            quality=4,
-            macro_block_size=1,
-        )
-        with open("data/video/log_video_gen.txt", mode="a") as f:
-            cur_time = time.time()
-            print(
-                "------生成视频所需时间:{}------".format(cur_time - record_time),
-                file=f,
-                flush=True,
-            )
-
+        # all_preds = np.stack(all_preds, axis=0)
         self.log(f"==> Finished Test.")
 
     # [GUI] just train for 16 steps, without any other overhead that may slow down rendering.
@@ -1173,8 +1161,8 @@ class Trainer(object):
 
             # update grid every 16 steps
             if (
-                self.model.cuda_ray
-                and self.global_step % self.opt.update_extra_interval == 0
+                    self.model.cuda_ray
+                    and self.global_step % self.opt.update_extra_interval == 0
             ):
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     self.model.update_extra_state()
@@ -1196,8 +1184,8 @@ class Trainer(object):
             total_loss += loss.detach()
 
             if (
-                self.ema is not None
-                and self.global_step % self.ema_update_interval == 0
+                    self.ema is not None
+                    and self.global_step % self.ema_update_interval == 0
             ):
                 self.ema.update()
 
@@ -1205,7 +1193,7 @@ class Trainer(object):
 
         if not self.scheduler_update_every_step:
             if isinstance(
-                self.lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                    self.lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
             ):
                 self.lr_scheduler.step(average_loss)
             else:
@@ -1220,17 +1208,17 @@ class Trainer(object):
 
     # [GUI] test on a single image
     def test_gui(
-        self,
-        pose,
-        intrinsics,
-        W,
-        H,
-        auds,
-        eye=None,
-        index=0,
-        bg_color=None,
-        spp=1,
-        downscale=1,
+            self,
+            pose,
+            intrinsics,
+            W,
+            H,
+            auds,
+            eye=None,
+            index=0,
+            bg_color=None,
+            spp=1,
+            downscale=1,
     ):
 
         # render resolution (may need downscale to for better frame rate)
@@ -1373,8 +1361,8 @@ class Trainer(object):
 
             # update grid every 16 steps
             if (
-                self.model.cuda_ray
-                and self.global_step % self.opt.update_extra_interval == 0
+                    self.model.cuda_ray
+                    and self.global_step % self.opt.update_extra_interval == 0
             ):
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     self.model.update_extra_state()
@@ -1398,8 +1386,8 @@ class Trainer(object):
             total_loss += loss_val
 
             if (
-                self.ema is not None
-                and self.global_step % self.ema_update_interval == 0
+                    self.ema is not None
+                    and self.global_step % self.ema_update_interval == 0
             ):
                 self.ema.update()
 
@@ -1440,7 +1428,7 @@ class Trainer(object):
 
         if not self.scheduler_update_every_step:
             if isinstance(
-                self.lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                    self.lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
             ):
                 self.lr_scheduler.step(average_loss)
             else:

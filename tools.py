@@ -1,30 +1,25 @@
 # python nerf/asr.py --wav ../data/audio/aud.wav --save_feats
-
-import time
-import numpy as np
-import torch
-import torch.nn.functional as F
-from transformers import AutoModelForCTC, AutoProcessor
-
-import pyaudio
-import soundfile as sf
-import resampy
-
+import argparse
+import asyncio
+import subprocess
 from queue import Queue
 from threading import Thread, Event
-import argparse
+import time
 
+import librosa
+import pyaudio
+import resampy
+import soundfile as sf
 from transformers import AutoModelForCTC, AutoProcessor
+
+from nerf.network import NeRFNetwork
 from nerf.provider import NeRFDataset_Test
 from nerf.utils import *
-from nerf.network import NeRFNetwork
-import argparse
-import subprocess
-import librosa
 
 fps = 25
 width = 512
 height = 512
+frame_sec = 1 / fps
 push_url = "rtsp://127.0.0.1:8554/humanlive"
 video_pipe_name = "video_pipe"
 audio_pipe_name = "audio_pipe"
@@ -81,6 +76,10 @@ command = [
 ]
 fd_v = None
 fd_a = None
+v_access = True
+a_access = True
+a_full_idle = torch.full((int(44100 / fps),), 0).detach().cpu().numpy()
+v_full_idle = torch.full((512, 512, 3), 0).detach().cpu().numpy()
 
 
 def _read_frame(stream, exit_event, queue, chunk):
@@ -90,7 +89,7 @@ def _read_frame(stream, exit_event, queue, chunk):
             break
         frame = stream.read(chunk, exception_on_overflow=False)
         frame = (
-            np.frombuffer(frame, dtype=np.int16).astype(np.float32) / 32767
+                np.frombuffer(frame, dtype=np.int16).astype(np.float32) / 32767
         )  # [chunk]
         queue.put(frame)
 
@@ -116,7 +115,7 @@ class ASR:
         self.fps = opt.fps  # 20 ms per frame
         self.sample_rate = 16000
         self.chunk = (
-            self.sample_rate // self.fps
+                self.sample_rate // self.fps
         )  # 320 samples per chunk (20ms * 16000 / 1000)
         self.mode = "live" if self.asr_wav == "" else "file"
 
@@ -217,8 +216,8 @@ class ASR:
         self.tail = 8
         # attention window...
         self.att_feats = [
-            torch.zeros(self.audio_dim, 16, dtype=torch.float32, device=self.device)
-        ] * 4  # 4 zero padding...
+                             torch.zeros(self.audio_dim, 16, dtype=torch.float32, device=self.device)
+                         ] * 4  # 4 zero padding...
 
         # warm up steps needed: mid + right + window_size + attention_size
         self.warm_up_steps = self.context_size + self.stride_right_size + 8 + 2 * 3
@@ -274,11 +273,11 @@ class ASR:
         while len(self.att_feats) < 8:
             # [------f+++t-----]
             if self.front < self.tail:
-                feat = self.feat_queue[self.front : self.tail]
+                feat = self.feat_queue[self.front: self.tail]
             # [++t-----------f+]
             else:
                 feat = torch.cat(
-                    [self.feat_queue[self.front :], self.feat_queue[: self.tail]], dim=0
+                    [self.feat_queue[self.front:], self.feat_queue[: self.tail]], dim=0
                 )
 
             self.front = (self.front + 2) % self.feat_queue.shape[0]
@@ -314,8 +313,8 @@ class ASR:
                 self.output_queue.put(frame)
             # context not enough, do not run network.
             if (
-                len(self.frames)
-                < self.stride_left_size + self.context_size + self.stride_right_size
+                    len(self.frames)
+                    < self.stride_left_size + self.context_size + self.stride_right_size
             ):
                 return
 
@@ -324,8 +323,8 @@ class ASR:
         # discard the old part to save memory
         if not self.terminated:
             self.frames = self.frames[
-                -(self.stride_left_size + self.stride_right_size) :
-            ]
+                          -(self.stride_left_size + self.stride_right_size):
+                          ]
 
         logits, labels, text = self.frame_to_text(inputs)
         feats = logits  # better lips-sync than labels
@@ -413,9 +412,9 @@ class ASR:
 
         for i in range(0, n_devices):
             if (
-                audio.get_device_info_by_host_api_device_index(0, i).get(
-                    "maxInputChannels"
-                )
+                    audio.get_device_info_by_host_api_device_index(0, i).get(
+                        "maxInputChannels"
+                    )
             ) > 0:
                 name = audio.get_device_info_by_host_api_device_index(0, i).get("name")
                 print(f"[INFO] choose audio device {name}, id {i}")
@@ -438,7 +437,7 @@ class ASR:
         if self.mode == "file":
 
             if self.idx < self.file_stream.shape[0]:
-                frame = self.file_stream[self.idx : self.idx + self.chunk]
+                frame = self.file_stream[self.idx: self.idx + self.chunk]
                 self.idx = self.idx + self.chunk
                 return frame
             else:
@@ -861,23 +860,15 @@ def video_process(opt, trainer, model, dir_path):
     # temp fix: for update_extra_states
     model.aud_features = test_loader._data.auds
     model.eye_areas = test_loader._data.eye_area
-    global fd_v
-    if fd_v is None:
-        fd_v = os.open(video_pipe_name, os.O_WRONLY)
-    audio_thread = Thread(target=write_audio, args=(dir_path["audio"], ))
-    audio_thread.start()
-    test = trainer.test(
+    global fd_v, v_access
+    v_access = False
+    asyncio.run(write_audio(dir_path["audio"]))
+    trainer.test(
         test_loader,
         name=dir_path["input"].split("/")[-1].split(".")[0],
         fd_pipe=fd_v,
     )
-    command = "ffmpeg -y -i %s -i %s -c:v copy -c:a aac %s" % (
-        dir_path["input"],
-        dir_path["audio"],
-        dir_path["output"],
-    )
-    subprocess.run(command.split(), capture_output=True)
-
+    v_access = True
     return dir_path["output"]
 
 
@@ -898,10 +889,43 @@ def generate_video(audio_path, audio_path_eo, video_path, output_path):
 
 
 '''持续写入44100/fps长度的0音频数组以及图像矩阵'''
+
+
 def ffmpeg_pre_process():
     make_pipe()
-    ffmpeg_thread = Thread(target=run_ffmpeg)
-    ffmpeg_thread.start()
+    _ = run_ffmpeg()
+    asyncio.run(write_video_idle())
+    asyncio.run(write_audio_idle())
+
+
+async def write_video_idle():
+    global fd_v, v_access, frame_sec
+    if fd_v is None:
+        fd_v = os.open(audio_pipe_name, os.O_WRONLY)
+    while True:
+        t0 = time.time()
+        if v_access is False:
+            await asyncio.sleep(frame_sec)
+        else:
+            os.write(fd_v, v_full_idle.tobytes())
+            cost = time.time() - t0
+            if frame_sec > cost:
+                await asyncio.sleep(frame_sec - cost)
+
+
+async def write_audio_idle():
+    global fd_a, a_access, frame_sec
+    if fd_a is None:
+        fd_a = os.open(audio_pipe_name, os.O_WRONLY)
+    while True:
+        t0 = time.time()
+        if a_access is False:
+            await asyncio.sleep(frame_sec)
+        else:
+            os.write(fd_a, a_full_idle.tobytes())
+            cost = time.time() - t0
+            if frame_sec > cost:
+                await asyncio.sleep(frame_sec - cost)
 
 
 def make_pipe():
@@ -914,25 +938,26 @@ def make_pipe():
     os.mkfifo(audio_pipe_name)
 
 
-def run_ffmpeg():
+def run_ffmpeg() -> subprocess.Popen:
     proc = subprocess.Popen(command, shell=False, stdin=subprocess.PIPE)
-    print("ffmpeg exit, exit code = %d" %(proc.wait()))
+    # print("ffmpeg exit, exit code = %d" % (proc.wait()))
+    return proc
 
 
-def write_audio(audio_path):
+async def write_audio(audio_path):
     speech_array, _ = librosa.load(audio_path, sr=44100)
     speech_array = (speech_array * 32767).astype(np.int16)
-    global fd_a
-    if fd_a is None:
-        fd_a = os.open(audio_pipe_name, os.O_WRONLY)
+    global fd_a, a_access
     wav_frame_num = int(44100 / fps)
     frame_counter = 0
+    a_access = False
     while True:
         # 由于音频流的采样率是xxx, 而视频流的帧率是25, 因此需要对音频流进行分帧
         speech = speech_array[
-            frame_counter * wav_frame_num : (frame_counter + 1) * wav_frame_num
-        ]
+                 frame_counter * wav_frame_num: (frame_counter + 1) * wav_frame_num
+                 ]
         os.write(fd_a, speech.tobytes())
         frame_counter += 1
         if frame_counter * wav_frame_num >= len(speech_array):
             break
+    a_access = True
