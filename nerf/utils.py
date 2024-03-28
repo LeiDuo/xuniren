@@ -1088,10 +1088,9 @@ class Trainer(object):
             bar_format="{percentage:3.0f}% {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
         )
         self.model.eval()
-        all_preds = []
-        record_time = time.time()
+        # all_preds = []
+        frame_sec = 1 / 26
         with torch.no_grad():
-            frame_sec = 1 / 25
             for i, data in enumerate(loader):
                 t0 = time.time()
                 with torch.cuda.amp.autocast(enabled=self.fp16):
@@ -1111,26 +1110,18 @@ class Trainer(object):
                 pred_depth = preds_depth[0].detach().cpu().numpy()
                 pred_depth = (pred_depth * 255).astype(np.uint8)
 
+                if write_image:
+                    imageio.imwrite(path, pred)
+                    imageio.imwrite(path_depth, pred_depth)
+
                 if fd_pipe is not None:
                     os.write(fd_pipe, pred.tobytes())
-                    cost = time.time() - t0
-                    if frame_sec > cost:
-                        time.sleep(frame_sec - cost)
+                    if frame_sec > time.time() - t0:
+                        time.sleep(frame_sec - (time.time() - t0))
 
-                # if write_image:
-                #     imageio.imwrite(path, pred)
-                #     imageio.imwrite(path_depth, pred_depth)
                 # all_preds.append(pred)
-
                 pbar.update(loader.batch_size)
 
-        with open("data/video/log_video_gen.txt", mode="a") as f:
-            cur_time = time.time()
-            print(
-                "------生成图片矩阵所需时间:{}------".format(cur_time - record_time),
-                file=f,
-                flush=True,
-            )
         # write video
         # all_preds = np.stack(all_preds, axis=0)
         self.log(f"==> Finished Test.")

@@ -1,8 +1,6 @@
 # server.py
 import asyncio
-import base64
 import json
-import re
 import time
 
 import edge_tts
@@ -34,10 +32,8 @@ def send_information(path=None):
             "video": None,
         }
     else:
-        with open(path, "rb") as f:
-            video_data = base64.b64encode(f.read()).decode()
         data = {
-            "video": "data:video/mp4;base64,%s" % video_data,
+            "video": path,
         }
     json_data = json.dumps(data)
     socketio.send(json_data)

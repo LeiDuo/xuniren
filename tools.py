@@ -1,10 +1,8 @@
 # python nerf/asr.py --wav ../data/audio/aud.wav --save_feats
 import argparse
-import asyncio
 import subprocess
 from queue import Queue
 from threading import Thread, Event
-import time
 
 import librosa
 import pyaudio
@@ -27,8 +25,8 @@ command = [
     "ffmpeg",
     "-loglevel",
     "info",
-    "-y",
-    "-an",
+    # "-y",
+    # "-an",
     "-f",
     "rawvideo",
     "-vcodec",
@@ -39,6 +37,7 @@ command = [
     "{}x{}".format(width, height),
     "-r",
     str(fps),
+    "-re",
     "-i",
     video_pipe_name,  # 视频流管道作为输入
     "-f",
@@ -77,9 +76,10 @@ command = [
 fd_v = None
 fd_a = None
 v_access = True
-a_access = True
-a_full_idle = torch.full((int(44100 / fps),), 0).detach().cpu().numpy()
-v_full_idle = torch.full((512, 512, 3), 0).detach().cpu().numpy()
+write_v_f = 0
+write_a_f = 0
+v_full_idle = imageio.v2.imread("./data/video/idle_pic.png")
+a_full_idle = torch.full((int(44100 / fps),), 0).detach().cpu().numpy().astype(np.int16)
 
 
 def _read_frame(stream, exit_event, queue, chunk):
@@ -862,7 +862,7 @@ def video_process(opt, trainer, model, dir_path):
     model.eye_areas = test_loader._data.eye_area
     global fd_v, v_access
     v_access = False
-    asyncio.run(write_audio(dir_path["audio"]))
+    Thread(target=write_audio, args=(dir_path["audio"],)).start()
     trainer.test(
         test_loader,
         name=dir_path["input"].split("/")[-1].split(".")[0],
@@ -894,38 +894,36 @@ def generate_video(audio_path, audio_path_eo, video_path, output_path):
 def ffmpeg_pre_process():
     make_pipe()
     _ = run_ffmpeg()
-    asyncio.run(write_video_idle())
-    asyncio.run(write_audio_idle())
+    Thread(target=write_video_idle).start()
+    Thread(target=write_audio_idle).start()
 
 
-async def write_video_idle():
-    global fd_v, v_access, frame_sec
+def write_video_idle():
+    global fd_v, v_access, frame_sec, write_v_f, write_a_f
     if fd_v is None:
-        fd_v = os.open(audio_pipe_name, os.O_WRONLY)
+        fd_v = os.open(video_pipe_name, os.O_WRONLY)
     while True:
-        t0 = time.time()
         if v_access is False:
-            await asyncio.sleep(frame_sec)
+            print("write_v_f=", write_v_f)
+            time.sleep(frame_sec)
         else:
             os.write(fd_v, v_full_idle.tobytes())
-            cost = time.time() - t0
-            if frame_sec > cost:
-                await asyncio.sleep(frame_sec - cost)
+            write_v_f += 1
+            time.sleep(frame_sec)
 
 
-async def write_audio_idle():
-    global fd_a, a_access, frame_sec
+def write_audio_idle():
+    global fd_a, v_access, frame_sec, write_v_f, write_a_f
     if fd_a is None:
         fd_a = os.open(audio_pipe_name, os.O_WRONLY)
     while True:
-        t0 = time.time()
-        if a_access is False:
-            await asyncio.sleep(frame_sec)
+        if v_access is False:
+            print("write_a_f=", write_a_f)
+            time.sleep(frame_sec)
         else:
             os.write(fd_a, a_full_idle.tobytes())
-            cost = time.time() - t0
-            if frame_sec > cost:
-                await asyncio.sleep(frame_sec - cost)
+            write_a_f += 1
+            time.sleep(frame_sec)
 
 
 def make_pipe():
@@ -944,13 +942,12 @@ def run_ffmpeg() -> subprocess.Popen:
     return proc
 
 
-async def write_audio(audio_path):
+def write_audio(audio_path):
     speech_array, _ = librosa.load(audio_path, sr=44100)
     speech_array = (speech_array * 32767).astype(np.int16)
-    global fd_a, a_access
+    global fd_a
     wav_frame_num = int(44100 / fps)
     frame_counter = 0
-    a_access = False
     while True:
         # 由于音频流的采样率是xxx, 而视频流的帧率是25, 因此需要对音频流进行分帧
         speech = speech_array[
@@ -960,4 +957,3 @@ async def write_audio(audio_path):
         frame_counter += 1
         if frame_counter * wav_frame_num >= len(speech_array):
             break
-    a_access = True

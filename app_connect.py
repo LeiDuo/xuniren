@@ -3,9 +3,9 @@ from tools import audio_pre_process, video_pre_process, ffmpeg_pre_process
 import json
 
 if __name__ == "__main__":
-    ffmpeg_pre_process()
     audio_pre_process()
     video_pre_process()
+    ffmpeg_pre_process()
     # 运行测试客户端
     test_client = socketio.test_client(app)
     test_client.connect()
