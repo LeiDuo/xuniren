@@ -1089,7 +1089,7 @@ class Trainer(object):
         )
         self.model.eval()
         # all_preds = []
-        frame_sec = 1 / 26
+        frame_sec = 1 / 30
         with torch.no_grad():
             for i, data in enumerate(loader):
                 t0 = time.time()
@@ -1117,7 +1117,10 @@ class Trainer(object):
                 if fd_pipe is not None:
                     os.write(fd_pipe, pred.tobytes())
                     if frame_sec > time.time() - t0:
-                        time.sleep(frame_sec - (time.time() - t0))
+                        try:
+                            time.sleep(frame_sec - (time.time() - t0))
+                        except ValueError:
+                            ...
 
                 # all_preds.append(pred)
                 pbar.update(loader.batch_size)

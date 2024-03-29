@@ -11,11 +11,10 @@ from tools import audio_pre_process, video_pre_process, generate_video, audio_pr
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-video_list = []
 
 
 async def main(voicename: str, text: str, OUTPUT_FILE):
-    communicate = edge_tts.Communicate(text, voicename, receive_timeout = 20)
+    communicate = edge_tts.Communicate(text, voicename, receive_timeout=20)
 
     with open(OUTPUT_FILE, "wb") as file:
         async for chunk in communicate.stream():
@@ -40,7 +39,6 @@ def send_information(path=None):
 
 
 def txt_to_audio(text_):
-    audio_list = []
     cur_time = round(time.time() * 1000)
     audio_path = "data/audio/aud_{}.wav".format(cur_time)
     audio_path_eo = "data/audio/aud_{}_eo.npy".format(cur_time)
@@ -83,21 +81,11 @@ def test_disconnect():
 @socketio.on("dighuman")
 def dighuman(dighuman):
     with open("data/video/log_video_gen.txt", mode="a") as f:
-        print(
-            f"接收到[{dighuman[0:5]}]...消息,开始生成数字人视频",
-            file=f,
-            flush=True,
-        )
         dighuman = dighuman.replace(" ", "")
         if len(dighuman) == 0:
             return
-        cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        print(f"准备生成视频时间:{cur_time}", file=f, flush=True)
         audio_path, audio_path_eo, video_path, output_path = txt_to_audio(dighuman)
         generate_video(audio_path, audio_path_eo, video_path, output_path)
-        cur_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        print(f"完成生成视频时间:{cur_time}", file=f, flush=True)
-        video_list.append(output_path)
         send_information(output_path)
     send_information()
 

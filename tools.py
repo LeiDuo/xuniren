@@ -1,7 +1,7 @@
 # python nerf/asr.py --wav ../data/audio/aud.wav --save_feats
 import argparse
 import subprocess
-from queue import Queue
+from queue import Queue, Full, Empty
 from threading import Thread, Event
 
 import librosa
@@ -76,6 +76,7 @@ command = [
 fd_v = None
 fd_a = None
 v_access = True
+sync_q = Queue(1)
 write_v_f = 0
 write_a_f = 0
 v_full_idle = imageio.v2.imread("./data/video/idle_pic.png")
@@ -863,6 +864,10 @@ def video_process(opt, trainer, model, dir_path):
     global fd_v, v_access
     v_access = False
     Thread(target=write_audio, args=(dir_path["audio"],)).start()
+    try:
+        _ = sync_q.get(timeout=1)
+    except Empty:
+        ...
     trainer.test(
         test_loader,
         name=dir_path["input"].split("/")[-1].split(".")[0],
@@ -904,12 +909,29 @@ def write_video_idle():
         fd_v = os.open(video_pipe_name, os.O_WRONLY)
     while True:
         if v_access is False:
-            print("write_v_f=", write_v_f)
+            if write_a_f > write_v_f:
+                for _ in range(write_a_f - write_v_f):
+                    os.write(fd_v, v_full_idle.tobytes())
+                    write_v_f += 1
+                try:
+                    sync_q.put(item=True, block=False)
+                except Full:
+                    continue
+                print("write_a_f=%d write_v_f=%d\n" % (write_a_f, write_v_f))
             time.sleep(frame_sec)
         else:
-            os.write(fd_v, v_full_idle.tobytes())
-            write_v_f += 1
-            time.sleep(frame_sec)
+            t0 = time.time()
+            for _ in range(1, fps):
+                if v_access is False:
+                    break
+                os.write(fd_v, v_full_idle.tobytes())
+                write_v_f += 1
+            try:
+                time.sleep(1 - time.time() + t0)
+            except ValueError:
+                ...
+            if write_v_f > write_a_f:
+                time.sleep(frame_sec)
 
 
 def write_audio_idle():
@@ -918,12 +940,29 @@ def write_audio_idle():
         fd_a = os.open(audio_pipe_name, os.O_WRONLY)
     while True:
         if v_access is False:
-            print("write_a_f=", write_a_f)
+            if write_v_f > write_a_f:
+                for _ in range(write_v_f - write_a_f):
+                    os.write(fd_a, a_full_idle.tobytes())
+                    write_a_f += 1
+                try:
+                    sync_q.put(item=True, block=False)
+                except Full:
+                    continue
+                print("write_a_f=%d write_v_f=%d\n" % (write_a_f, write_v_f))
             time.sleep(frame_sec)
         else:
-            os.write(fd_a, a_full_idle.tobytes())
-            write_a_f += 1
-            time.sleep(frame_sec)
+            t0 = time.time()
+            for _ in range(fps):
+                if v_access is False:
+                    break
+                os.write(fd_a, a_full_idle.tobytes())
+                write_a_f += 1
+            try:
+                time.sleep(1 - time.time() + t0)
+            except ValueError:
+                ...
+            if write_a_f > write_v_f:
+                time.sleep(frame_sec)
 
 
 def make_pipe():
