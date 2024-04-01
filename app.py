@@ -80,13 +80,12 @@ def test_disconnect():
 
 @socketio.on("dighuman")
 def dighuman(dighuman):
-    with open("data/video/log_video_gen.txt", mode="a") as f:
-        dighuman = dighuman.replace(" ", "")
-        if len(dighuman) == 0:
-            return
-        audio_path, audio_path_eo, video_path, output_path = txt_to_audio(dighuman)
-        generate_video(audio_path, audio_path_eo, video_path, output_path)
-        send_information(output_path)
+    dighuman = dighuman.replace(" ", "")
+    if len(dighuman) == 0:
+        return
+    audio_path, audio_path_eo, video_path, output_path = txt_to_audio(dighuman)
+    generate_video(audio_path, audio_path_eo, video_path, output_path)
+    send_information(output_path)
     send_information()
 
 
