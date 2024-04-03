@@ -7,7 +7,7 @@ import edge_tts
 from flask import Flask
 from flask_socketio import SocketIO
 
-from tools import audio_pre_process, video_pre_process, generate_video, audio_process
+from tools import audio_pre_process, video_pre_process, generate_video, audio_process, ffmpeg_pre_process
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -92,5 +92,5 @@ def dighuman(dighuman):
 if __name__ == "__main__":
     audio_pre_process()
     video_pre_process()
-
+    ffmpeg_pre_process()
     socketio.run(app, port=8800)
