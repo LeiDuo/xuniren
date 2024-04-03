@@ -82,6 +82,13 @@ By default, we use [`load`](https://pytorch.org/docs/stable/cpp_extension.html#t
 bash scripts/install_ext.sh(建议复制出来单独安装)
 ```
 
+### 推流
+```
+推流地址:rtsp://127.0.0.1:8554/humanlive
+推流服务器推荐使用mediamtx
+```
+
+
 ### **start(独立运行)**
 
 环境配置完成后，启动虚拟人生成器：
