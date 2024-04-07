@@ -37,7 +37,7 @@ command = [
     "{}x{}".format(width, height),
     "-r",
     str(fps),
-    "-re",
+    #"-re",
     "-i",
     video_pipe_name,  # 视频流管道作为输入
     "-f",
@@ -923,7 +923,7 @@ def write_video_idle():
             time.sleep(frame_sec)
         else:
             t0 = time.time()
-            for _ in range(1, fps):
+            for _ in range(fps):
                 if v_access is False:
                     break
                 os.write(fd_v, v_full_idle.tobytes())

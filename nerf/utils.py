@@ -1071,7 +1071,7 @@ class Trainer(object):
         self.evaluate_one_epoch(loader, name)
         self.use_tensorboardX = use_tensorboardX
 
-    def test(self, loader, save_path=None, name=None, write_image=False, fd_pipe=None):
+    def test(self, loader, save_path=None, name=None, write_image=False, fd_pipe=None, fps=25):
 
         if save_path is None:
             save_path = os.path.join(self.workspace, "results")
@@ -1089,7 +1089,7 @@ class Trainer(object):
         )
         self.model.eval()
         # all_preds = []
-        frame_sec = 1 / 30
+        frame_sec = 1 / (fps + 1)
         with torch.no_grad():
             for i, data in enumerate(loader):
                 t0 = time.time()
@@ -1116,11 +1116,10 @@ class Trainer(object):
 
                 if fd_pipe is not None:
                     os.write(fd_pipe, pred.tobytes())
-                    if frame_sec > time.time() - t0:
-                        try:
-                            time.sleep(frame_sec - (time.time() - t0))
-                        except ValueError:
-                            ...
+                    try:
+                        time.sleep(frame_sec - (time.time() - t0))
+                    except ValueError:
+                        ...
 
                 # all_preds.append(pred)
                 pbar.update(loader.batch_size)
